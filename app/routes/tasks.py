@@ -33,6 +33,23 @@ def create_task(payload: TaskCreate, current_user: dict = Depends(get_current_us
     return task
 
 
+@router.get("/dashboard")
+def dashboard(current_user: dict = Depends(get_current_user)):
+    # simple dashboard counts
+    tasks = [t for t in _tasks.values() if t.get("owner") == current_user["username"]]
+    total = len(tasks)
+    by_status = {s.value: 0 for s in TaskStatus}
+    upcoming = None
+    for t in tasks:
+        by_status[t["status"].value if hasattr(t["status"], "value") else t["status"]] += 1
+        if t.get("due_date"):
+            dd = t.get("due_date")
+            if isinstance(dd, date):
+                if upcoming is None or dd < upcoming:
+                    upcoming = dd
+    return {"total": total, "by_status": by_status, "next_due": upcoming}
+
+
 @router.get("/{task_id}", response_model=TaskOut)
 def get_task(task_id: int, current_user: dict = Depends(get_current_user)):
     task = _tasks.get(task_id)
